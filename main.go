@@ -20,13 +20,17 @@ func main() {
 	var composite []banDataType
 	exe, err := os.Executable()
 
+	//Help
 	if len(os.Args) <= 1 {
 		fmt.Println("Usage: " + filepath.Base(exe) + " <file1> <file2> ...")
 		fmt.Print("Output file: composite.json\n")
 		os.Exit(1)
 	}
+
+	//Get list of files
 	filesToProcess := os.Args[1:]
 
+	//Loop through files
 	for _, file := range filesToProcess {
 
 		file, err := os.Open(file)
@@ -46,6 +50,7 @@ func main() {
 			os.Exit(1)
 		}
 
+		/* This area deals with 'array of strings' format */
 		var names []string
 		err = json.Unmarshal(data, &names)
 
@@ -61,6 +66,7 @@ func main() {
 			}
 		}
 
+		/* This area deals with standard format bans */
 		var bans []banDataType
 		err = json.Unmarshal(data, &bans)
 
@@ -73,9 +79,9 @@ func main() {
 				bData = append(bData, banDataType{UserName: item.UserName, Reason: item.Reason})
 			}
 		}
-
 		log.Println("Read " + fmt.Sprintf("%v", len(bData)) + " bans from banlist.")
 
+		/* Combine all the data, dealing with duplicates */
 		dupes := 0
 		diffDupes := 0
 		for apos, aBan := range bData {
@@ -94,7 +100,11 @@ func main() {
 				composite = append(composite, aBan)
 			} else {
 				if aBan.Reason != dupReason && !strings.HasPrefix(dupReason, "[dup]") {
-					bData[apos].Reason = "[dup] " + aBan.Reason + ", " + dupReason
+					if aBan.Reason != "" && dupReason != "" {
+						bData[apos].Reason = "[dup] " + aBan.Reason + ", " + dupReason
+					} else {
+						bData[apos].Reason = "[dup] " + aBan.Reason + dupReason
+					}
 					diffDupes++
 					composite = append(composite, bData[apos])
 				}
@@ -104,6 +114,8 @@ func main() {
 		log.Printf("Removed %v duplicates from banlist, %v dupes had multiple reasons (reasons combined)\n", dupes, diffDupes)
 
 	}
+
+	/* Write out composite banlist */
 	file, err := os.Create("composite.json")
 
 	if err != nil {
