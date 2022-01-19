@@ -1,4 +1,5 @@
 # QuickBanCombine
+[![License: Unlicense](https://img.shields.io/badge/license-Unlicense-blue.svg)](http://unlicense.org/)
 [![Go](https://github.com/Distortions81/QuickBanCombine/actions/workflows/go.yml/badge.svg)](https://github.com/Distortions81/QuickBanCombine/actions/workflows/go.yml)
 [![ReportCard](https://github.com/Distortions81/QuickBanCombine/actions/workflows/report.yml/badge.svg)](https://github.com/Distortions81/QuickBanCombine/actions/workflows/report.yml)
 [![CodeQL](https://github.com/Distortions81/QuickBanCombine/actions/workflows/codeql-analysis.yml/badge.svg)](https://github.com/Distortions81/QuickBanCombine/actions/workflows/codeql-analysis.yml)
