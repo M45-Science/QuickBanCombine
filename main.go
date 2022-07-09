@@ -18,7 +18,7 @@ type banDataType struct {
 
 func main() {
 	var composite []banDataType
-	exe, err := os.Executable()
+	exe, _ := os.Executable()
 
 	//Help
 	if len(os.Args) <= 1 {
@@ -68,11 +68,7 @@ func main() {
 
 		/* This area deals with standard format bans */
 		var bans []banDataType
-		err = json.Unmarshal(data, &bans)
-
-		if err != nil {
-			//Ignore, just array of strings
-		}
+		json.Unmarshal(data, &bans)
 
 		for _, item := range bans {
 			if item.UserName != "" {
