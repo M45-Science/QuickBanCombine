@@ -68,7 +68,7 @@ func main() {
 
 		/* This area deals with standard format bans */
 		var bans []banDataType
-		json.Unmarshal(data, &bans)
+		_ = json.Unmarshal(data, &bans)
 
 		for _, item := range bans {
 			if item.UserName != "" {
