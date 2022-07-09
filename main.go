@@ -61,7 +61,7 @@ func main() {
 
 			for _, name := range names {
 				if name != "" {
-					bData = append(bData, banDataType{UserName: name})
+					bData = append(bData, banDataType{UserName: strings.ToLower(name)})
 				}
 			}
 		}
@@ -76,7 +76,7 @@ func main() {
 
 		for _, item := range bans {
 			if item.UserName != "" {
-				bData = append(bData, banDataType{UserName: item.UserName, Reason: item.Reason})
+				bData = append(bData, banDataType{UserName: strings.ToLower(item.UserName), Reason: item.Reason})
 			}
 		}
 		log.Println("Read " + fmt.Sprintf("%v", len(bData)) + " bans from banlist.")
@@ -88,7 +88,7 @@ func main() {
 			found := false
 			dupReason := ""
 			for bpos, bBan := range bData {
-				if aBan.UserName == bBan.UserName && apos != bpos {
+				if strings.EqualFold(aBan.UserName, bBan.UserName) && apos != bpos {
 					found = true
 					dupReason = bBan.Reason
 					dupes++
@@ -99,7 +99,7 @@ func main() {
 			if !found {
 				composite = append(composite, aBan)
 			} else {
-				if aBan.Reason != dupReason && !strings.HasPrefix(dupReason, "[dup]") {
+				if !strings.EqualFold(aBan.Reason, dupReason) && !strings.HasPrefix(dupReason, "[dup]") {
 					if aBan.Reason != "" && dupReason != "" {
 						bData[apos].Reason = "[dup] " + aBan.Reason + ", " + dupReason
 					} else {
