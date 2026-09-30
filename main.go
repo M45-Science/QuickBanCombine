@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -17,7 +15,6 @@ type banDataType struct {
 }
 
 func main() {
-	var composite []banDataType
 	exe, _ := os.Executable()
 
 	//Help
@@ -27,116 +24,72 @@ func main() {
 		os.Exit(1)
 	}
 
-	//Get list of files
-	filesToProcess := os.Args[1:]
+	if err := combineFiles(os.Args[1:]); err != nil {
+		log.Print(err)
+		os.Exit(1)
+	}
+}
 
-	//Loop through files
-	for _, file := range filesToProcess {
-
-		file, err := os.Open(file)
-
+func combineFiles(files []string) error {
+	composite := make([]banDataType, 0)
+	indexes := make(map[string]int)
+	var reasons [][]string
+	for _, file := range files {
+		data, err := os.ReadFile(file)
 		if err != nil {
-			log.Println(file, err)
-			return
+			return fmt.Errorf("read %s: %w", file, err)
 		}
-		defer file.Close()
-
-		var bData []banDataType
-
-		data, err := ioutil.ReadAll(file)
-
-		if err != nil {
-			log.Println(err)
-			os.Exit(1)
-		}
-
-		/* This area deals with 'array of strings' format */
-		var names []string
-		err = json.Unmarshal(data, &names)
-
-		if err != nil {
-			//Not really an error, just empty array
-			//Only needed because Factorio will write some bans as an array for some unknown reason.
-		} else {
-
-			for _, name := range names {
-				if name != "" {
-					bData = append(bData, banDataType{UserName: strings.ToLower(name)})
-				}
-			}
-		}
-
-		/* This area deals with standard format bans */
 		var bans []banDataType
-		_ = json.Unmarshal(data, &bans)
-
-		for _, item := range bans {
-			if item.UserName != "" {
-				bData = append(bData, banDataType{UserName: strings.ToLower(item.UserName), Reason: item.Reason})
+		var names []string
+		if err := json.Unmarshal(data, &names); err == nil {
+			for _, name := range names {
+				bans = append(bans, banDataType{UserName: name})
 			}
+		} else if err := json.Unmarshal(data, &bans); err != nil {
+			return fmt.Errorf("parse %s: %w", file, err)
 		}
-		log.Println("Read " + fmt.Sprintf("%v", len(bData)) + " bans from banlist.")
-
-		/* Combine all the data, dealing with duplicates */
-		dupes := 0
-		diffDupes := 0
-		for apos, aBan := range bData {
-			found := false
-			dupReason := ""
-			for bpos, bBan := range bData {
-				if strings.EqualFold(aBan.UserName, bBan.UserName) && apos != bpos {
-					found = true
-					dupReason = bBan.Reason
-					dupes++
+		for _, ban := range bans {
+			if ban.UserName == "" {
+				continue
+			}
+			name := strings.ToLower(ban.UserName)
+			pos, found := indexes[name]
+			if !found {
+				pos = len(composite)
+				indexes[name] = pos
+				composite = append(composite, banDataType{UserName: name})
+				reasons = append(reasons, nil)
+			}
+			if ban.Reason == "" {
+				continue
+			}
+			duplicateReason := false
+			for _, reason := range reasons[pos] {
+				if strings.EqualFold(reason, ban.Reason) {
+					duplicateReason = true
 					break
 				}
-
 			}
-			if !found {
-				composite = append(composite, aBan)
-			} else {
-				if !strings.EqualFold(aBan.Reason, dupReason) && !strings.HasPrefix(dupReason, "[dup]") {
-					if aBan.Reason != "" && dupReason != "" {
-						bData[apos].Reason = "[dup] " + aBan.Reason + ", " + dupReason
-					} else {
-						bData[apos].Reason = "[dup] " + aBan.Reason + dupReason
-					}
-					diffDupes++
-					composite = append(composite, bData[apos])
-				}
+			if !duplicateReason {
+				reasons[pos] = append(reasons[pos], ban.Reason)
 			}
 		}
-
-		log.Printf("Removed %v duplicates from banlist, %v dupes had multiple reasons (reasons combined)\n", dupes, diffDupes)
-
+		log.Printf("Read %d bans from %s.\n", len(bans), file)
 	}
-
-	/* Write out composite banlist */
-	file, err := os.Create("composite.json")
-
+	for pos, list := range reasons {
+		composite[pos].Reason = strings.Join(list, ", ")
+		if len(list) > 1 {
+			composite[pos].Reason = "[dup] " + composite[pos].Reason
+		}
+	}
+	data, err := json.MarshalIndent(composite, "", "\t")
 	if err != nil {
-		log.Println(err)
-		os.Exit(1)
+		return fmt.Errorf("encode composite ban list: %w", err)
 	}
-
-	outbuf := new(bytes.Buffer)
-	enc := json.NewEncoder(outbuf)
-	enc.SetIndent("", "\t")
-
-	err = enc.Encode(composite)
-
-	if err != nil {
-		log.Println("Error encoding ban list file: " + err.Error())
-		os.Exit(1)
+	data = append(data, '\n')
+	if err := os.WriteFile("composite.json", data, 0644); err != nil {
+		return fmt.Errorf("write composite.json: %w", err)
 	}
-
-	wrote, err := file.Write(outbuf.Bytes())
-
-	if err != nil {
-		log.Println(err)
-		os.Exit(1)
-	}
-
-	log.Printf("Wrote banlist (%v) of %v bytes.\n", len(composite), wrote)
-
+	log.Printf("Wrote banlist (%d) of %d bytes.\n", len(composite), len(data))
+	return nil
 }
